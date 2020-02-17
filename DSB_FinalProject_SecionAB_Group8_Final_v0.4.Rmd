@@ -1,0 +1,158 @@
+---
+title: "DSB_FinalProject_SecionAB_Group8_Proposal"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Business Problem
+
+The opioid crisis has been devastating the United States at a steadily increasing pace since the 1990s, with the government and private sector in a state of alarm and confusion on how to adequately address the issue. Some states have been disproportionately affected by this crisis which begs the urgent question, what state level characteristics are the main drivers of the opioid epidemic? With a more clear understanding of these drivers, the US government can deliberately address these drivers and successfully curb the growing opioid addiction epidemic. 
+
+## Business Solution Process
+
+In terms of understanding the problem in detail, we’re relying on the meticulous body of data collated by the US government around drug overdose death counts from 2015 to 2019. From this data we can extrapolate the opioid specific deaths and consolidate aggregate state by state death counts. For the purpose of our project we’re including all opioids both legal and illegal, including but not limited to heroin, methadone, natural & semi-synthetic opioids, and subscription opioids.
+
+Speculating on the potential main drivers is a more creative process that is currently underway. We’re casting a wide net in terms of considering factors for which there’s a high degree of variability between states and that we think could potentially influence a person’s inclination to become addicted to drugs. This is including but not limited to income level, percentage rural population, marriage rate, average age, education level, health insurance coverage, obesity rate, race, and political affiliation.
+
+Once we’ve consolidated a set of potential drivers, we will use the dimensionality reduction process from class session 9 in order to 1) identify the main drivers of the opioid death rates cross states and 2) perform a dimensionality reduction in order to understand the most significant combination of drivers.   
+
+We've chosen to look at state level data for several reasons. First, there's an extensive body of data on a state level, allowing us to consider the widest number of drivers towards the opioid epidemic. Second, there's a series of drivers that wouldn't be captured at a city level which we want to account for, one example is percentage of rural area.  
+
+## Sample of Data
+
+The data around opioid deaths per state is included here and the main drivers are currently being collected and cleaned. Note that the summary included below shows data for 2016, for the final product we'll include an aggregate of historical data from 1999 to 2018.
+
+Timeframe: 2016	
+
+Location	Opioid Overdose Deaths
+
+United States	42249
+
+Alabama	343
+
+Alaska	94
+
+Arizona	769
+
+Arkansas	169
+
+California	2012
+
+Colorado	536
+
+## Data Dictionary
+
+Comprehensive data dictionary will be included with the final submission given that we’re still exploring potential drivers but a summary is below.
+
+  income level : categorical variable indicating percentage of population in different income levels
+  
+  rural vs urban population : int variable indicating percentage of population living in rural areas
+  
+  marriage rate : int variable indicating percentage of population married
+  
+  average age : categorical variable indicating percentage of population in different age levels
+  
+  education level : categorical variable indicating percentage of population in different education levels
+  
+  health insurance coverage : categorical variable indicating percentage of population in different levels of healthcare coverage
+  
+  obesity rate : categorical variable indicating percentage of population in different obesity levels
+  
+  race : categorical variable indicating percentage of population in different categories of race
+  
+  political affiliation : categorical variable indicating percentage of population in different categories of political affiliation (i.e. democrat, republican, independent, other)
+  
+## Project Execution
+
+```{r}
+
+opioid_data<-read.csv(file("./Opioid_State_Data_2017_v0.1.csv"), header=TRUE, sep=",")
+# Fixing incorrectly classified data types:
+#str(opioid_data)
+#summary(opioid_data)
+#head(opioid_data)
+#tail(opioid_data)
+
+###split training and testing. We want to train on the 2017 data and then eventually test on the 2018 data
+##opioid.data.training<-subset(opioid_data, ID<=51) #put the 2017 year data into training bucket
+##opioid.data.testing<-subset(opioid_data, ID>=52) #put 2018 year data into testing bucket
+
+###validate that data was split appropriately
+##head(opioid.data.training)
+##tail(opioid.data.training)
+
+# Entering columns of attributes
+factor_attributes_used = c(3:37)
+
+# Choosing "eigenvalue" as selection criteria
+factor_selectionciterion = "eigenvalue"
+ 
+# Choosing 65 as minimum variance
+minimum_variance_explained = 65  # between 1 and 100
+
+# Entering 15 as number of factors to use if we end up doing factor reduction
+manual_numb_factors_used = 15
+
+# Choosing varimax as rotation to use if we end up doing factor reduction
+rotation_used = "varimax"
+
+factor_attributes_used <- intersect(factor_attributes_used, 1:ncol(opioid_data))
+opioid_data <- opioid_data[,factor_attributes_used]
+opioid_data <- data.matrix(opioid_data)
+
+#Some visual exploration of the data
+
+suppressWarnings(source("./AnalyticsLibraries/library.R"))
+# Package options
+suppressWarnings(ggthemr('fresh'))  # ggplot theme
+opts_knit$set(progress=FALSE, verbose=FALSE)
+opts_chunk$set(echo=FALSE, fig.align="center", fig.width=10, fig.height=6.35, results="asis")
+options(knitr.kable.NA = '')
+
+# Run below only once, then comment out
+# New versions of the networkD3 package may not work properly, so install the following version
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/networkD3/networkD3_0.2.13.tar.gz"
+install.packages(packageurl, repos=NULL, type="source")
+
+# Please enter the minimum number below which you would like not to print - this makes the readability of the tables easier. Default values are either 10e6 (to print everything) or 0.5. Try both to see the difference.
+MIN_VALUE = 0.5
+
+# Please enter the maximum number of observations to show in the report and slides. 
+# DEFAULT is 10. If the number is large the report may be slow.
+max_data_report = 40
+
+rownames(opioid_data) <- paste0("Obs.", sprintf("%02i", 1:nrow(opioid_data)))
+iprint.df(t(head(round(opioid_data, 2), max_data_report)))
+
+```
+
+The data we use here have the following descriptive statistics: 
+
+```{r}
+iprint.df(round(my_summary(opioid_data), 2))
+```
+
+There's a huge range of possible values and we therefore want to scale the data:
+
+```{r}
+opioid_data_scaled = apply(opioid_data, 2, function(r) {
+    if (sd(r) != 0) 
+        res = (r - mean(r))/sd(r) else res = 0 * r
+    res
+})
+```
+
+Now we want to check correlations with the scales data:
+
+
+```{r}
+thecor = round(cor(opioid_data),2)
+iprint.df(round(thecor,2), scale=TRUE)
+write.csv(round(thecor,2), file = "thecor_opioid_data.csv")
+```
+
+
+
